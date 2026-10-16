@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JZK's Skills Manager</title>
+  <style>
+    :root{color-scheme:light;--bg:#f4f6f8;--panel:#fff;--text:#18212b;--muted:#687484;--line:#dde3ea;--accent:#2457d6;--warn:#c63d36;--chip:#edf2ff;--shadow:0 8px 28px rgba(21,33,52,.07)}
+    [data-theme="dark"]{color-scheme:dark;--bg:#11161d;--panel:#18202a;--text:#edf2f8;--muted:#9eabba;--line:#303b49;--accent:#83a7ff;--warn:#ff7b72;--chip:#243451;--shadow:none}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 "Microsoft YaHei UI","Segoe UI",sans-serif}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{max-width:1180px;margin:auto;padding:34px 24px 60px}.top{display:flex;gap:18px;align-items:flex-end;justify-content:space-between;margin-bottom:22px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.08em}.title{font-size:30px;line-height:1.25;margin:4px 0}.subtitle{color:var(--muted)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow)}button,select,input{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 10px}input{min-width:220px;flex:1}button{cursor:pointer}.stats{display:flex;gap:18px;color:var(--muted);margin:14px 2px}
+    .list{display:grid;gap:10px}.row{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(180px,1.4fr) 135px 145px 105px;gap:18px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:15px 17px;box-shadow:var(--shadow)}.row:hover{border-color:var(--accent)}
+    .name{font-weight:700;font-size:15px}.summary{color:var(--muted)}.meta{font-size:12px;color:var(--muted)}.chip{display:inline-flex;width:max-content;max-width:100%;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{display:flex;align-items:center;gap:7px}.bang{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--warn);color:#fff;font-weight:800}.inactive{color:var(--warn)}details{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:9px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;color:var(--muted);font-size:13px}.empty{padding:50px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:14px}
+    @media(max-width:800px){.top{align-items:flex-start;flex-direction:column}.row{grid-template-columns:1fr}.meta{display:inline}.detail-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header class="top"><div><div class="eyebrow">LOCAL SKILL CATALOG</div><h1 class="title">JZK's Skills Manager</h1><div class="subtitle" id="stamp">读取本机缓存报告</div></div><button id="theme">切换深浅色</button></header>
+  <section class="toolbar">
+    <input id="query" type="search" placeholder="搜索名称、简介、功能或仓库">
+    <select id="sort"><option value="name">按名称</option><option value="created">按本地目录创建时间</option><option value="owner">按仓库所属</option><option value="category">按功能分类</option></select>
+    <select id="filter"><option value="all">显示全部</option><option value="overlap">只看功能重合</option><option value="inactive">只看失效项目</option></select>
+  </section>
+  <div class="stats" id="stats"></div><section class="list" id="list"></section>
+</main>
+<script src="catalog.js"></script>
+<script>
+const data=window.JZK_DATA||{records:[],stats:{}};const $=s=>document.querySelector(s);let state={q:'',sort:'name',filter:'all'};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function link(r){const n=esc(r.name);return r.githubUrl?`<a href="${esc(r.githubUrl)}" target="_blank" rel="noreferrer">${n}</a>`:n}
+function render(){let rows=[...(data.records||[])];const q=state.q.toLowerCase();if(q)rows=rows.filter(r=>[r.name,r.summaryZh,r.category,r.repoOwner,...(r.functions||[])].join(' ').toLowerCase().includes(q));if(state.filter==='overlap')rows=rows.filter(r=>(r.overlaps||[]).length);if(state.filter==='inactive')rows=rows.filter(r=>r.status==='inactive');const key={name:'name',created:'createdAt',owner:'repoOwner',category:'category'}[state.sort];rows.sort((a,b)=>String(a[key]||'').localeCompare(String(b[key]||''),'zh-CN',{numeric:true}));$('#list').innerHTML=rows.length?rows.map(r=>`<article class="row"><div><div class="name">${(r.overlaps||[]).length?'<span class="bang" title="存在功能重合">!</span> ':''}${link(r)}</div><div class="meta">${esc(r.sourceLabel||'本地 Skill')}</div></div><div class="summary">${esc(r.summaryZh||r.description||'待生成中文简介')}</div><div><span class="chip">${esc(r.category||'待分类')}</span></div><div class="meta">${esc(r.createdAt||'时间未知')}</div><div class="status ${r.status==='inactive'?'inactive':''}">${r.status==='inactive'?'已失效':'可用'}</div><details><summary>查看详情</summary><div class="detail-grid"><div>功能：${esc((r.functions||[]).join('、')||'待整理')}</div><div>仓库所属：${esc(r.repoOwner||'本地/未知')}</div><div>路径：${esc(r.directory||'')}</div><div>失效时间：${esc(r.firstMissingAt||'—')}</div><div>重合对象：${esc((r.overlaps||[]).join('、')||'无')}</div><div>分工差异：${esc(r.difference||'—')}</div></div></details></article>`).join(''):'<div class="empty">没有符合当前条件的项目</div>'}
+$('#stamp').textContent=data.generatedAt?`报告生成于 ${data.generatedAt}`:'尚未生成报告';$('#stats').textContent=`共 ${data.stats?.total||0} 项 · 重合提示 ${data.stats?.overlap||0} 项 · 已失效 ${data.stats?.inactive||0} 项`;
+$('#query').oninput=e=>{state.q=e.target.value;render()};$('#sort').onchange=e=>{state.sort=e.target.value;render()};$('#filter').onchange=e=>{state.filter=e.target.value;render()};
+const saved=localStorage.getItem('jzk-theme')||'light';document.documentElement.dataset.theme=saved;$('#theme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('jzk-theme',n)};render();
+</script>
+</body>
+</html>
